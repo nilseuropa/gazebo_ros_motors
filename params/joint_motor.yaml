@@ -1,0 +1,17 @@
+# topics
+command_topic: /motor/command
+publish_velocity: true
+velocity_topic: /motor/velocity
+publish_encoder: false
+encoder_topic: /motor/encoder
+publish_motor_joint_state: false
+update_rate: 100.0
+# ODE joint motor
+ode_joint_motor_fmax: 50.0
+ode_joint_fudge_factor: 1.0
+# transmission
+joint_damping: 0.005
+joint_friction: 0.01
+# shaft encoder
+encoder_ppr: 4096
+encoder_to_shaft_ratio: 1.0

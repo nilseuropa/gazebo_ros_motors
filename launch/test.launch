@@ -1,0 +1,20 @@
+<launch>
+
+  <arg name="model" default="$(find gazebo_ros_motors)/xacro/test.xacro" />
+
+  <param name="robot_description" command="$(find xacro)/xacro $(arg model)" />
+  <node  name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" args="-z 1.0 -unpause -urdf -model motor -param robot_description" respawn="false" output="screen" />
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="recording" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+</launch>

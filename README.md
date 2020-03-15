@@ -1,2 +1,1 @@
-# gazebo_ros_dc_motor
-DC motor simulation plugin for Gazebo / ROS
+# gazebo_ros_motors

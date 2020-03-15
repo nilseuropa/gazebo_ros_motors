@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- load parameters from yaml file -->
+<xacro:property name="params_yaml"  value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/>
+<xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
+
+<xacro:macro name="dc_motor" params="motor_name parent_link child_link *origin">
+  <joint name="${motor_name}" type="continuous">
+      <parent link="${parent_link}"/>
+      <child link="${child_link}"/>
+      <xacro:insert_block name="origin"/>
+      <axis xyz="0 0 1"/>
+      <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
+  </joint>
+  <gazebo reference="${motor_name}">
+    <provideFeedback>true</provideFeedback>
+  </gazebo>
+  <gazebo>
+    <plugin name="motor_plugin" filename="libgazebo_ros_dc_motor.so">
+      <motor_shaft_joint>${motor_name}</motor_shaft_joint>
+      <motor_wrench_frame>${child_link}</motor_wrench_frame>
+      <command_topic>${motor_param['command_topic']}</command_topic>
+      <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
+      <velocity_topic>${motor_param['velocity_topic']}</velocity_topic>
+      <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
+      <encoder_topic>${motor_param['encoder_topic']}</encoder_topic>
+      <publish_wrench>${motor_param['publish_wrench']}</publish_wrench>
+      <wrench_topic>${motor_param['wrench_topic']}</wrench_topic>
+      <publish_current>${motor_param['publish_current']}</publish_current>
+      <current_topic>${motor_param['current_topic']}</current_topic>
+      <publish_motor_joint_state>${motor_param['publish_motor_joint_state']}</publish_motor_joint_state>
+      <update_rate>${motor_param['update_rate']}</update_rate>
+      <motor_nominal_voltage>${motor_param['motor_nominal_voltage']}</motor_nominal_voltage>
+      <moment_of_inertia>${motor_param['moment_of_inertia']}</moment_of_inertia>
+      <armature_damping_ratio>${motor_param['armature_damping_ratio']}</armature_damping_ratio>
+      <electromotive_force_constant>${motor_param['electromotive_force_constant']}</electromotive_force_constant>
+      <electric_resistance>${motor_param['electric_resistance']}</electric_resistance>
+      <electric_inductance>${motor_param['electric_inductance']}</electric_inductance>
+      <gear_ratio>${motor_param['gear_ratio']}</gear_ratio>
+      <encoder_ppr>${motor_param['encoder_ppr']}</encoder_ppr>
+    </plugin>
+  </gazebo>
+
+</xacro:macro>
+
+</robot>

@@ -1,0 +1,25 @@
+# topics
+command_topic: /motor/command
+publish_velocity: true
+velocity_topic: /motor/velocity
+publish_encoder: false
+encoder_topic: /motor/encoder
+publish_wrench: false
+wrench_topic: /motor/wrench
+publish_current: true
+current_topic: /motor/current
+publish_motor_joint_state: false
+update_rate: 100.0
+# motor model
+motor_nominal_voltage: 24.0 # Volts
+moment_of_inertia: 0.001 # kgm^2
+armature_damping_ratio: 0.0001 # Nm/(rad/s)
+electromotive_force_constant: 0.08 # Nm/A
+electric_resistance: 1.0 # Ohm
+electric_inductance: 0.001 # Henry
+# transmission
+gear_ratio: 20.0
+joint_damping: 0.005
+joint_friction: 0.01
+# shaft encoder
+encoder_ppr: 4096

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- load parameters from yaml file -->
+<xacro:property name="params_yaml"  value="$(find gazebo_ros_motors)/params/joint_motor.yaml"/>
+<xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
+
+<!-- ODE joint motor macro -->
+<xacro:macro name="joint_motor" params="motor_name parent_link child_link *origin">
+  <joint name="${motor_name}" type="continuous">
+      <parent link="${parent_link}"/>
+      <child link="${child_link}"/>
+      <xacro:insert_block name="origin"/>
+      <axis xyz="0 0 1"/>
+      <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
+  </joint>
+  <gazebo>
+    <plugin name="motor_plugin" filename="libgazebo_ros_joint_motor.so">
+      <motor_shaft_joint>${motor_name}</motor_shaft_joint>
+      <motor_wrench_frame>${child_link}</motor_wrench_frame>
+      <ode_joint_motor_fmax>${motor_param['ode_joint_motor_fmax']}</ode_joint_motor_fmax>
+      <ode_joint_fudge_factor>${motor_param['ode_joint_fudge_factor']}</ode_joint_fudge_factor>
+      <command_topic>${motor_param['command_topic']}</command_topic>
+      <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
+      <velocity_topic>${motor_param['velocity_topic']}</velocity_topic>
+      <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
+      <encoder_topic>${motor_param['encoder_topic']}</encoder_topic>
+      <publish_motor_joint_state>${motor_param['publish_motor_joint_state']}</publish_motor_joint_state>
+      <update_rate>${motor_param['update_rate']}</update_rate>
+      <encoder_ppr>${motor_param['encoder_ppr']}</encoder_ppr>
+      <encoder_to_shaft_ratio>${motor_param['encoder_to_shaft_ratio']}</encoder_to_shaft_ratio>
+    </plugin>
+  </gazebo>
+
+</xacro:macro>
+
+</robot>

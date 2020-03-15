@@ -1,0 +1,3 @@
+<launch>
+  <test test-name="test_motor_model" pkg="nowtech_actuator_models" type="test_motor_model" />
+</launch>
