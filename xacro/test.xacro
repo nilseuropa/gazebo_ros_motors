@@ -57,11 +57,13 @@
 
   <xacro:include filename="$(find gazebo_ros_motors)/xacro/dc_motor.xacro"/>
   <xacro:dc_motor motor_name="dc_motor" parent_link="base_link" child_link="wheel_link">
+    <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/>
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
   </xacro:dc_motor>
 
   <!-- <xacro:include filename="$(find gazebo_ros_motors)/xacro/joint_motor.xacro"/>
   <xacro:joint_motor motor_name="ode_motor" parent_link="base_link" child_link="wheel_link">
+    <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/joint_motor.yaml"/>
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
   </xacro:joint_motor> -->
 

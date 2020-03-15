@@ -1,11 +1,9 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-<!-- load parameters from yaml file -->
-<xacro:property name="params_yaml"  value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/>
-<xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
-
 <xacro:macro name="dc_motor" params="motor_name parent_link child_link *origin">
+  <!-- <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/> -->
+  <xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
   <joint name="${motor_name}" type="continuous">
       <parent link="${parent_link}"/>
       <child link="${child_link}"/>
