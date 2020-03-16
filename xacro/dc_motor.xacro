@@ -21,11 +21,9 @@
       <command_topic>${motor_name}/command</command_topic>
       <velocity_topic>${motor_name}/velocity</velocity_topic>
       <encoder_topic>${motor_name}/encoder</encoder_topic>
-      <wrench_topic>${motor_name}/wrench</wrench_topic>
       <current_topic>${motor_name}/current</current_topic>
       <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
       <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
-      <publish_wrench>${motor_param['publish_wrench']}</publish_wrench>
       <publish_current>${motor_param['publish_current']}</publish_current>
       <publish_motor_joint_state>${motor_param['publish_motor_joint_state']}</publish_motor_joint_state>
       <update_rate>${motor_param['update_rate']}</update_rate>

@@ -54,7 +54,7 @@ namespace gazebo {
       ros::Publisher velocity_publisher_;
       ros::Publisher current_publisher_;
       ros::Publisher joint_state_publisher_;
-      ros::Publisher wrench_publisher_;
+      // ros::Publisher wrench_publisher_;
       ros::Subscriber cmd_vel_subscriber_;
       sensor_msgs::JointState joint_state_;
       geometry_msgs::WrenchStamped wrench_msg_;
@@ -64,12 +64,12 @@ namespace gazebo {
       std::string encoder_topic_;
       std::string velocity_topic_; /// topic for the motor shaft velocity (encoder side, before gearbox)
       std::string current_topic_;
-      std::string wrench_topic_;
+      // std::string wrench_topic_;
       std::string wrench_frame_;
       bool publish_velocity_;
       bool publish_current_;
       bool publish_encoder_;
-      bool publish_wrench_;
+      // bool publish_wrench_;
       bool publish_motor_joint_state_;
       double input_;
       double update_rate_;
@@ -106,10 +106,10 @@ namespace gazebo {
       void publishEncoderCount(long ctr);
       void cmdVelCallback(const std_msgs::Float32::ConstPtr& cmd_msg);
       void publishWheelJointState();
-      void motorModelUpdate(double dt, double actual_omega, physics::JointWrench actual_joint_wrench);
+      void motorModelUpdate(double dt, double actual_omega, double current_torque);
       void publishEncoderCount(double m_vel, double dT);
       void publishMotorCurrent();
-      void publishJointWrench(physics::JointWrench wrench, common::Time current_time);
+      // void publishJointWrench(physics::JointWrench wrench, common::Time current_time);
   };
 
 }
