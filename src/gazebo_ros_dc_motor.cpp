@@ -214,10 +214,7 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, phys
     internal_omega_   = o_t;
     ignition::math::Vector3d applied_torque;
     applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
-    //ROS_INFO_STREAM("Current: " << internal_current_ << ", omega: " << internal_omega_ << ", " << internal_omega_/3.1416*30 << " rpm");
-    // TODO: Publish torque if needed!
-    // ROS_INFO_STREAM("External torque: " << T << ", output torque: " << applied_torque.Z());
-    this->link_->AddTorque(applied_torque);
+    this->link_->AddRelativeTorque(applied_torque);
 }
 
 // Plugin update function
