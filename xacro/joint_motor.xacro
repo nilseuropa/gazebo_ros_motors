@@ -17,11 +17,11 @@
       <motor_wrench_frame>${child_link}</motor_wrench_frame>
       <ode_joint_motor_fmax>${motor_param['ode_joint_motor_fmax']}</ode_joint_motor_fmax>
       <ode_joint_fudge_factor>${motor_param['ode_joint_fudge_factor']}</ode_joint_fudge_factor>
-      <command_topic>${motor_param['command_topic']}</command_topic>
+      <command_topic>${motor_name}/command</command_topic>
+      <velocity_topic>${motor_name}/velocity</velocity_topic>
+      <encoder_topic>${motor_name}/encoder</encoder_topic>
       <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
-      <velocity_topic>${motor_param['velocity_topic']}</velocity_topic>
       <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
-      <encoder_topic>${motor_param['encoder_topic']}</encoder_topic>
       <publish_motor_joint_state>${motor_param['publish_motor_joint_state']}</publish_motor_joint_state>
       <update_rate>${motor_param['update_rate']}</update_rate>
       <encoder_ppr>${motor_param['encoder_ppr']}</encoder_ppr>

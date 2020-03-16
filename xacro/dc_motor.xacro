@@ -18,15 +18,15 @@
     <plugin name="motor_plugin" filename="libgazebo_ros_dc_motor.so">
       <motor_shaft_joint>${motor_name}</motor_shaft_joint>
       <motor_wrench_frame>${child_link}</motor_wrench_frame>
-      <command_topic>${motor_param['command_topic']}</command_topic>
-      <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
-      <velocity_topic>${motor_param['velocity_topic']}</velocity_topic>
+      <command_topic>${motor_name}/command</command_topic>
+      <velocity_topic>${motor_name}/velocity</velocity_topic>
+      <encoder_topic>${motor_name}/encoder</encoder_topic>
+      <wrench_topic>${motor_name}/wrench</wrench_topic>
+      <current_topic>${motor_name}/current</current_topic>
       <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
-      <encoder_topic>${motor_param['encoder_topic']}</encoder_topic>
+      <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
       <publish_wrench>${motor_param['publish_wrench']}</publish_wrench>
-      <wrench_topic>${motor_param['wrench_topic']}</wrench_topic>
       <publish_current>${motor_param['publish_current']}</publish_current>
-      <current_topic>${motor_param['current_topic']}</current_topic>
       <publish_motor_joint_state>${motor_param['publish_motor_joint_state']}</publish_motor_joint_state>
       <update_rate>${motor_param['update_rate']}</update_rate>
       <motor_nominal_voltage>${motor_param['motor_nominal_voltage']}</motor_nominal_voltage>

@@ -1,13 +1,8 @@
 # topics
-command_topic: /motor/command
 publish_velocity: true
-velocity_topic: /motor/velocity
-publish_encoder: false
-encoder_topic: /motor/encoder
-publish_wrench: false
-wrench_topic: /motor/wrench
-publish_current: true
-current_topic: /motor/current
+publish_encoder:  false
+publish_wrench:   false
+publish_current:  true
 publish_motor_joint_state: false
 update_rate: 100.0
 # motor model
