@@ -2,6 +2,7 @@
 #define _MOTOR_PLUGIN_H_
 
 #include <map>
+#include <thread>
 
 // Gazebo
 #include <gazebo/common/common.hh>

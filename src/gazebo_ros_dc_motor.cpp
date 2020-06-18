@@ -73,7 +73,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 
     // command subscriber
     if ( this->update_rate_ > 0.0 ) this->update_period_ = 1.0 / this->update_rate_; else this->update_period_ = 0.0;
-    last_update_time_ = parent->GetWorld()->SimTime();
+    last_update_time_ = parent->GetWorld()->GetSimTime();
     ROS_INFO_NAMED("motor_plugin", "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
     ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
         command_topic_,
@@ -115,7 +115,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 }
 
 void GazeboRosMotor::Reset() {
-  last_update_time_ = parent->GetWorld()->SimTime();
+  last_update_time_ = parent->GetWorld()->GetSimTime();
   input_ = 0;
   encoder_counter_ = 0;
   internal_current_ = 0;
@@ -129,7 +129,7 @@ void GazeboRosMotor::publishWheelJointState() {
     joint_state_.name.resize ( 1 );
     joint_state_.position.resize ( 1 );
     physics::JointPtr joint = joint_;
-    double position = joint->Position ( 0 );
+    double position = joint->GetAngle(0).Radian();
     joint_state_.name[0] = joint->GetName();
     joint_state_.position[0] = position;
     joint_state_publisher_.publish ( joint_state_ );
@@ -157,25 +157,6 @@ void GazeboRosMotor::publishMotorCurrent(){
   c_msg.data = internal_current_; // (amps)
   if (this->publish_current_) current_publisher_.publish(c_msg);
 }
-
-// void GazeboRosMotor::publishJointWrench(physics::JointWrench wrench, common::Time time){
-//   if (this->publish_wrench_){
-//     ignition::math::Vector3d torque;
-//     ignition::math::Vector3d force;
-//     force  = wrench.body2Force;
-//     torque = wrench.body2Torque;
-//     this->wrench_msg_.header.frame_id = this->wrench_frame_;
-//     this->wrench_msg_.header.stamp.sec = time.sec;
-//     this->wrench_msg_.header.stamp.nsec = time.nsec;
-//     this->wrench_msg_.wrench.force.x  = force.X();
-//     this->wrench_msg_.wrench.force.y  = force.Y();
-//     this->wrench_msg_.wrench.force.z  = force.Z();
-//     this->wrench_msg_.wrench.torque.x = torque.X();
-//     this->wrench_msg_.wrench.torque.y = torque.Y();
-//     this->wrench_msg_.wrench.torque.z = torque.Z();
-//     this->wrench_publisher_.publish(this->wrench_msg_);
-//   }
-// }
 
 // Motor Model update function
 void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, double actual_load_torque) {
@@ -211,21 +192,21 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
     // Update internal variables
     internal_current_ = i_t;
     internal_omega_   = o_t;
-    ignition::math::Vector3d applied_torque;
-    applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
+    gazebo::math::Vector3 applied_torque;
+    applied_torque.z = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
     this->link_->AddRelativeTorque(applied_torque);
 }
 
 // Plugin update function
 void GazeboRosMotor::UpdateChild() {
-    common::Time current_time = parent->GetWorld()->SimTime();
+    common::Time current_time = parent->GetWorld()->GetSimTime();
     double seconds_since_last_update = ( current_time - last_update_time_ ).Double();
     // physics::JointWrench current_wrench;
     // current_wrench = joint_->GetForceTorque( 0u );
     double current_output_speed = joint_->GetVelocity( 0u );
-    ignition::math::Vector3d current_torque = this->link_->RelativeTorque();
-    double actual_load = current_torque.Z();
-    
+    gazebo::math::Vector3 current_torque = this->link_->GetRelativeTorque();
+    double actual_load = current_torque.z;
+
     motorModelUpdate(seconds_since_last_update, current_output_speed, actual_load);
 
     if ( seconds_since_last_update > update_period_ ) {

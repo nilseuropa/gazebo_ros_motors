@@ -56,7 +56,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
 		// command subscription
 		if ( this->update_rate_ > 0.0 ) this->update_period_ = 1.0 / this->update_rate_; else this->update_period_ = 0.0;
-		last_update_time_ = parent->GetWorld()->SimTime();
+		last_update_time_ = parent->GetWorld()->GetSimTime();
     ROS_INFO_NAMED("motor_plugin", "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
     ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
         command_topic_,
@@ -89,7 +89,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 }
 
 void GazeboRosMotor::Reset() {
-  last_update_time_ = parent->GetWorld()->SimTime();
+  last_update_time_ = parent->GetWorld()->GetSimTime();
   joint_->SetParam ( "fmax", 0, ode_joint_motor_fmax_ );
 	joint_->SetVelocity(0,0);
   input_ = 0;
@@ -103,7 +103,7 @@ void GazeboRosMotor::publishWheelJointState() {
     joint_state_.name.resize ( 1 );
     joint_state_.position.resize ( 1 );
     physics::JointPtr joint = joint_;
-    double position = joint->Position ( 0 );
+    double position = joint->GetAngle(0).Radian();
     joint_state_.name[0] = joint->GetName();
     joint_state_.position[0] = position;
     joint_state_publisher_.publish ( joint_state_ );
@@ -128,7 +128,7 @@ void GazeboRosMotor::publishEncoderCount(double m_vel, double dT){
 
 // Plugin update function
 void GazeboRosMotor::UpdateChild() {
-    common::Time current_time = parent->GetWorld()->SimTime();
+    common::Time current_time = parent->GetWorld()->GetSimTime();
     double seconds_since_last_update = ( current_time - last_update_time_ ).Double();
 		double current_speed = joint_->GetVelocity( 0u )*encoder_to_shaft_ratio_;
 		joint_->SetParam("fmax", 0, ode_joint_motor_fmax_);
