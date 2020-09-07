@@ -67,7 +67,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     // joint state publisher
     gazebo_ros_->getParameterBoolean  ( publish_motor_joint_state_, "publish_motor_joint_state", false );
     if (this->publish_motor_joint_state_) {
-        joint_state_publisher_ = gazebo_ros_->node()->advertise<sensor_msgs::JointState>("joint_state", 1000);
+        joint_state_publisher_ = gazebo_ros_->node()->advertise<sensor_msgs::JointState>(joint_->GetName()+"/joint_state", 1000);
         ROS_INFO_NAMED("motor_plugin", "%s: Advertise joint_state", gazebo_ros_->info());
     }
 
@@ -122,18 +122,22 @@ void GazeboRosMotor::Reset() {
   internal_omega_ = 0;
 }
 
-void GazeboRosMotor::publishWheelJointState() {
-  if (this->publish_motor_joint_state_){
+void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
+	if (this->publish_motor_joint_state_){
     ros::Time current_time = ros::Time::now();
     joint_state_.header.stamp = current_time;
     joint_state_.name.resize ( 1 );
     joint_state_.position.resize ( 1 );
+		joint_state_.velocity.resize ( 1 );
+		joint_state_.effort.resize ( 1 );
     physics::JointPtr joint = joint_;
     double position = joint->Position ( 0 );
     joint_state_.name[0] = joint->GetName();
     joint_state_.position[0] = position;
+		joint_state_.velocity[0] = velocity;
+		joint_state_.effort[0] = effort;
     joint_state_publisher_.publish ( joint_state_ );
-  }
+	}
 }
 
 // Velocity publisher
@@ -225,11 +229,11 @@ void GazeboRosMotor::UpdateChild() {
     double current_output_speed = joint_->GetVelocity( 0u );
     ignition::math::Vector3d current_torque = this->link_->RelativeTorque();
     double actual_load = current_torque.Z();
-    
+
     motorModelUpdate(seconds_since_last_update, current_output_speed, actual_load);
 
     if ( seconds_since_last_update > update_period_ ) {
-        publishWheelJointState();
+        publishWheelJointState( current_output_speed, current_torque.Z() );
         // publishJointWrench ( current_wrench, current_time );
         publishMotorCurrent();
         publishRotorVelocity( current_output_speed );

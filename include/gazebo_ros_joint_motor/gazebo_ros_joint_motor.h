@@ -53,6 +53,7 @@ namespace gazebo {
       ros::Publisher joint_state_publisher_;
       ros::Subscriber cmd_vel_subscriber_;
       sensor_msgs::JointState joint_state_;
+      std::string wrench_frame_;
 
       // Topic params
       std::string command_topic_;
@@ -86,7 +87,7 @@ namespace gazebo {
       void publishRotorVelocity(double m_vel);
       void publishEncoderCount(long ctr);
       void cmdVelCallback(const std_msgs::Float32::ConstPtr& cmd_msg);
-      void publishWheelJointState();
+      void publishWheelJointState(double m_vel, double m_wrench);
       void publishEncoderCount(double m_vel, double dT);
   };
 

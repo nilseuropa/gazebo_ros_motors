@@ -35,6 +35,7 @@
       <electric_inductance>${motor_param['electric_inductance']}</electric_inductance>
       <gear_ratio>${motor_param['gear_ratio']}</gear_ratio>
       <encoder_ppr>${motor_param['encoder_ppr']}</encoder_ppr>
+      <rosDebugLevel>Debug</rosDebugLevel>
     </plugin>
   </gazebo>
 

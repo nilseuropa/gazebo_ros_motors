@@ -26,6 +26,7 @@
       <update_rate>${motor_param['update_rate']}</update_rate>
       <encoder_ppr>${motor_param['encoder_ppr']}</encoder_ppr>
       <encoder_to_shaft_ratio>${motor_param['encoder_to_shaft_ratio']}</encoder_to_shaft_ratio>
+      <rosDebugLevel>Debug</rosDebugLevel>
     </plugin>
   </gazebo>
 

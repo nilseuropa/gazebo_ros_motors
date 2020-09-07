@@ -1,7 +1,7 @@
 # topics
 publish_velocity: true
 publish_encoder:  false
-publish_motor_joint_state: false
+publish_motor_joint_state: true
 update_rate: 100.0
 # ODE joint motor
 ode_joint_motor_fmax: 50.0

@@ -47,10 +47,18 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 		joint_->SetParam( "fudge_factor", 0, this->ode_joint_fudge_factor_);
 		joint_->SetProvideFeedback(true);
 
+		gazebo_ros_->getParameter<std::string> ( wrench_frame_,  "motor_wrench_frame", "wheel_link" );
+    this->link_ = parent->GetLink(this->wrench_frame_);
+	  ROS_INFO_NAMED("motor_plugin", "Wrench frame: %s", this->wrench_frame_.c_str());
+    if (!this->link_) {
+      ROS_FATAL_NAMED("motor_plugin", "link named: %s does not exist\n",this->wrench_frame_.c_str());
+      return;
+    }
+
 		// joint state publisher
 		gazebo_ros_->getParameterBoolean  ( publish_motor_joint_state_, "publish_motor_joint_state", false );
     if (this->publish_motor_joint_state_) {
-        joint_state_publisher_ = gazebo_ros_->node()->advertise<sensor_msgs::JointState>("joint_state", 1000);
+        joint_state_publisher_ = gazebo_ros_->node()->advertise<sensor_msgs::JointState>(joint_->GetName()+"/joint_state", 1000);
         ROS_INFO_NAMED("motor_plugin", "%s: Advertise joint_state", gazebo_ros_->info());
     }
 
@@ -96,16 +104,20 @@ void GazeboRosMotor::Reset() {
 	encoder_counter_ = 0;
 }
 
-void GazeboRosMotor::publishWheelJointState() {
+void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
 	if (this->publish_motor_joint_state_){
     ros::Time current_time = ros::Time::now();
     joint_state_.header.stamp = current_time;
     joint_state_.name.resize ( 1 );
     joint_state_.position.resize ( 1 );
+		joint_state_.velocity.resize ( 1 );
+		joint_state_.effort.resize ( 1 );
     physics::JointPtr joint = joint_;
     double position = joint->Position ( 0 );
     joint_state_.name[0] = joint->GetName();
     joint_state_.position[0] = position;
+		joint_state_.velocity[0] = velocity;
+		joint_state_.effort[0] = effort;
     joint_state_publisher_.publish ( joint_state_ );
 	}
 }
@@ -128,13 +140,14 @@ void GazeboRosMotor::publishEncoderCount(double m_vel, double dT){
 
 // Plugin update function
 void GazeboRosMotor::UpdateChild() {
+		joint_->SetParam("fmax", 0, ode_joint_motor_fmax_);
+		joint_->SetParam("vel",  0, input_);
     common::Time current_time = parent->GetWorld()->SimTime();
     double seconds_since_last_update = ( current_time - last_update_time_ ).Double();
 		double current_speed = joint_->GetVelocity( 0u )*encoder_to_shaft_ratio_;
-		joint_->SetParam("fmax", 0, ode_joint_motor_fmax_);
-		joint_->SetParam("vel",  0, input_);
+		ignition::math::Vector3d current_torque = this->link_->RelativeTorque();
     if ( seconds_since_last_update > update_period_ ) {
-				publishWheelJointState();
+				publishWheelJointState( current_speed, current_torque.Z() );
 				publishRotorVelocity( current_speed );
 				publishEncoderCount( current_speed , seconds_since_last_update );
 				last_update_time_+= common::Time ( update_period_ );
