@@ -26,6 +26,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 
     gazebo_ros_ = GazeboRosPtr ( new GazeboRos ( _parent, _sdf, "MotorPlugin" ) );
     gazebo_ros_->isInitialized();
+    this->plugin_name_ = _sdf->GetAttribute("name")->GetAsString();
 
     // global parameters
     gazebo_ros_->getParameter<std::string> ( command_topic_,  "command_topic",  "/motor/voltage_norm" );
@@ -62,7 +63,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameter<std::string> ( wrench_frame_,  "motor_wrench_frame", "wheel_link" );
     this->link_ = parent->GetLink(this->wrench_frame_);
     if (!this->link_) {
-      ROS_FATAL_NAMED("motor_plugin", "link named: %s does not exist\n",this->wrench_frame_.c_str());
+      ROS_FATAL_NAMED(plugin_name_, "link named: %s does not exist\n",this->wrench_frame_.c_str());
       return;
     }
 
@@ -70,13 +71,13 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameterBoolean  ( publish_motor_joint_state_, "publish_motor_joint_state", false );
     if (this->publish_motor_joint_state_) {
         joint_state_publisher_ = gazebo_ros_->node()->advertise<sensor_msgs::JointState>(joint_->GetName()+"/joint_state", 1000);
-        ROS_INFO_NAMED("motor_plugin", "%s: Advertise joint_state", gazebo_ros_->info());
+        ROS_INFO_NAMED(plugin_name_, "%s: Advertise joint_state", gazebo_ros_->info());
     }
 
     // command subscriber
     if ( this->update_rate_ > 0.0 ) this->update_period_ = 1.0 / this->update_rate_; else this->update_period_ = 0.0;
     last_update_time_ = parent->GetWorld()->SimTime();
-    ROS_INFO_NAMED("motor_plugin", "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
+    ROS_INFO_NAMED(plugin_name_, "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
     ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
         command_topic_,
         1,
@@ -85,25 +86,26 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
         &queue_
     );
     cmd_vel_subscriber_ = gazebo_ros_->node()->subscribe(so);
-    ROS_INFO_NAMED("motor_plugin", "%s: Subscribed to %s", gazebo_ros_->info(), command_topic_.c_str());
+    ROS_INFO_NAMED(plugin_name_, "%s: Subscribed to %s", gazebo_ros_->info(), command_topic_.c_str());
     // encoder publishers
     if (this->publish_velocity_){
       velocity_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(velocity_topic_, 1);
-      ROS_INFO_NAMED("motor_plugin", "%s: Advertising motor shaft (before gearbox) velocity on %s ", gazebo_ros_->info(), velocity_topic_.c_str());
+      ROS_INFO_NAMED(plugin_name_, "%s: Advertising motor shaft (before gearbox) velocity on %s ", gazebo_ros_->info(), velocity_topic_.c_str());
     }
     if (this->publish_encoder_){
       encoder_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Int32>(encoder_topic_, 1);
-      ROS_INFO_NAMED("motor_plugin", "%s: Advertising encoder counts on %s ", gazebo_ros_->info(), encoder_topic_.c_str());
+      ROS_INFO_NAMED(plugin_name_, "%s: Advertising encoder counts on %s ", gazebo_ros_->info(), encoder_topic_.c_str());
     }
     if (this->publish_current_){
       current_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(current_topic_, 1);
-      ROS_INFO_NAMED("motor_plugin", "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
+      ROS_INFO_NAMED(plugin_name_, "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
     }
 
     // Set up dynamic_reconfigure server
-    node_handle_ = new ros::NodeHandle(_sdf->GetAttribute("name")->GetAsString());
-    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(ros::NodeHandle(*node_handle_)));
+    node_handle_ = new ros::NodeHandle(plugin_name_);
+    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(reconf_mutex_, ros::NodeHandle(*node_handle_)));
     dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
+    // this->dynamic_reconfigure_server_.setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
 
     // start custom queue
     this->callback_queue_thread_ = std::thread ( std::bind ( &GazeboRosMotor::QueueThread, this ) );
@@ -125,33 +127,115 @@ void GazeboRosMotor::Reset() {
   internal_omega_ = 0;
 }
 
+bool GazeboRosMotor::ValidateParameters() {
+    const double& d = armature_damping_ratio_;
+    const double& L = electric_inductance_;
+    const double& R = electric_resistance_;
+    const double& Km = electromotive_force_constant_;
+    const double& J = moment_of_inertia_;
+    bool ok = true;
+    // Check if d^2 L^2 + J^2 R^2 - 2 J L (2 Km^2 + d R) > 0 (which appears under sqrt)
+    double Om = 0;
+    if (d*d*L*L + J*J*R*R > 2*J*L*(2*Km*Km + d*R)) {
+        Om = sqrt(d*d*L*L + J*J*R*R - 2*J*L*(2*Km*Km + d*R));
+        // OK, roots are real, not complex
+    } else {
+        ok = false;
+        ROS_WARN_NAMED(plugin_name_, "Incorrect DC motor parameters: d^2 L^2 + J^2 R^2 - 2 J L (2 Km^2 + d R) > 0 not satisfied!");
+    }
+
+    if (ok) {
+      // Check if -dL-JR+Om < 0 (Other real root is always negative: -dL-JR-Om)
+      if (Om < d*L+J*R) {
+        // OK, both real roots are stable
+      } else {
+        ok = false;
+        ROS_WARN_NAMED(plugin_name_, "Incorrect DC motor parameters: sqrt(d^2 L^2 + J^2 R^2 - 2 J L (2 Km^2 + d R)) < d*L+J*R not satisfied!");
+      }
+    }
+    return ok;
+}
+
 void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level) {
-  // ROS_INFO_NAMED("motor_plugin", "%s: Dynamic configuration received. ", gazebo_ros_->info());
-  velocity_noise_=config.velocity_noise;
-  motor_nominal_voltage_=config.motor_nominal_voltage;
-  electric_resistance_=config.electric_resistance;
-  electric_inductance_=config.electric_inductance;
-  moment_of_inertia_=config.moment_of_inertia;
-  armature_damping_ratio_=config.armature_damping_ratio;
-  electromotive_force_constant_=config.electromotive_force_constant;
+    // ROS_INFO_NAMED(plugin_name_, "%s: Dynamic configuration received. ", gazebo_ros_->info());
+    // Noise and V does not affect linear stability
+    velocity_noise_=config.velocity_noise;
+    motor_nominal_voltage_=config.motor_nominal_voltage;
+    bool ok = true;
+
+    double temp = electric_resistance_; // Temporary storage for parameter
+    if (electric_resistance_ != config.electric_resistance) {
+      electric_resistance_ = config.electric_resistance;// R
+      if (!this->ValidateParameters()) {
+    	electric_resistance_ = temp;
+    	ROS_WARN_NAMED(plugin_name_, "Electric resistance %6.3f discarded, keeping previous value of %6.3f Ohm", config.electric_resistance, electric_resistance_);
+    	ok = false;
+      }
+    }
+
+    temp = electric_inductance_;
+    if (electric_inductance_ != config.electric_inductance) {
+      electric_inductance_ = config.electric_inductance; // L
+      if (!this->ValidateParameters()) {
+    	electric_inductance_ = temp;
+    	ROS_WARN_NAMED(plugin_name_, "Electric inductance %6.3f discarded, keeping previous value of %6.3f H", config.electric_inductance, electric_inductance_);
+    	ok = false;
+      }
+    }
+
+    temp = moment_of_inertia_;
+    if (moment_of_inertia_ != config.moment_of_inertia) {
+      moment_of_inertia_ = config.moment_of_inertia; // J
+      if (!this->ValidateParameters()) {
+    	moment_of_inertia_ = temp;
+    	ROS_WARN_NAMED(plugin_name_, "Moment of inertia %6.3f discarded, keeping previous value of %6.3f kgm^2", config.moment_of_inertia, moment_of_inertia_);
+    	ok = false;
+      }
+    }
+
+    temp = armature_damping_ratio_;
+    if (armature_damping_ratio_ != config.armature_damping_ratio) {
+      armature_damping_ratio_ = config.armature_damping_ratio; // d
+      if (!this->ValidateParameters()) {
+    	armature_damping_ratio_ = temp;
+    	ROS_WARN_NAMED(plugin_name_, "Armature damping %6.3f discarded, keeping previous value of %6.3f Nm/(rad/s)", config.armature_damping_ratio, armature_damping_ratio_);
+    	ok = false;
+      }
+    }
+
+    temp = electromotive_force_constant_;
+    if (electromotive_force_constant_ != config.electromotive_force_constant) {
+      electromotive_force_constant_ = config.electromotive_force_constant; // Km
+      if (!this->ValidateParameters()) {
+    	electromotive_force_constant_ = temp;
+    	ROS_WARN_NAMED(plugin_name_, "Motor constant %6.3f discarded, keeping previous value of %6.3f Nm/(rad/s)", config.electromotive_force_constant, electromotive_force_constant_);
+    	ok = false;
+      }
+    }
+
+    if (ok) {
+      ROS_INFO_NAMED(plugin_name_, "DC Motor parameters validated and updated");
+    } else {
+      notify_server_ = true; // Some of the params were rejected, notify the param server from the main loop.
+    }
 }
 
 void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
-	if (this->publish_motor_joint_state_){
+    if (this->publish_motor_joint_state_){
     ros::Time current_time = ros::Time::now();
     joint_state_.header.stamp = current_time;
     joint_state_.name.resize ( 1 );
     joint_state_.position.resize ( 1 );
-		joint_state_.velocity.resize ( 1 );
-		joint_state_.effort.resize ( 1 );
+    joint_state_.velocity.resize ( 1 );
+    joint_state_.effort.resize ( 1 );
     physics::JointPtr joint = joint_;
     double position = joint->Position ( 0 );
     joint_state_.name[0] = joint->GetName();
     joint_state_.position[0] = position;
-		joint_state_.velocity[0] = velocity;
-		joint_state_.effort[0] = effort;
+    joint_state_.velocity[0] = velocity;
+    joint_state_.effort[0] = effort;
     joint_state_publisher_.publish ( joint_state_ );
-	}
+    }
 }
 
 // Velocity publisher
@@ -234,6 +318,22 @@ void GazeboRosMotor::UpdateChild() {
         publishRotorVelocity( current_noisy_output_speed );
         publishEncoderCount( current_noisy_output_speed , seconds_since_last_update );
         last_update_time_+= common::Time ( update_period_ );
+    }
+
+    // If there was a parameter update, notify server
+    if (notify_server_) {
+      current_config_.velocity_noise        = velocity_noise_;
+      current_config_.motor_nominal_voltage = motor_nominal_voltage_;
+      current_config_.electric_resistance   = electric_resistance_;
+      current_config_.electric_inductance   = electric_inductance_;
+      current_config_.moment_of_inertia     = moment_of_inertia_;
+      current_config_.armature_damping_ratio       = armature_damping_ratio_;
+      current_config_.electromotive_force_constant = electromotive_force_constant_;
+      boost::recursive_mutex::scoped_lock scoped_lock(reconf_mutex_);
+      dynamic_reconfigure_server_->updateConfig(current_config_);
+      ROS_INFO_NAMED(plugin_name_, "Some parameter changes were rejected, notifying parameter server...");
+      notify_server_ = false;
+      scoped_lock.unlock();
     }
 }
 

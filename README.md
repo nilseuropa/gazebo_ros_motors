@@ -34,10 +34,11 @@ Where ![](doc/ke.svg) is the electromotive constant and back EMF (e) is proporti
 
 ### Simulator interface
 
-The controlled input for the DC motor model is the voltage that is applied to the motor's electrical connectors, environmental inputs are the shaft velocity and the external load torque on the shaft. Output is the electromotive force produced by the virtual motor.
+The controlled input for the DC motor model is the **normalized** **voltage** that is applied to the motor's electrical connectors, environmental inputs are the shaft velocity and the external load torque on the shaft. Output is the electromotive force produced by the virtual motor.
 
 ```c++
-link_->AddTorque(ignition::math::Vector3d applied_torque); // apply torque
+applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
+this->link_->AddRelativeTorque(applied_torque);
 joint_->GetForceTorque( 0u ); // get external load
 joint_->GetVelocity( 0u ); // get shaft angular velocity
 ```
@@ -64,6 +65,12 @@ Just use the **dc_motor** macro in a descriptor file as if it were a joint:
 Plugin parameters are loaded from a **yaml** file *( defaults are close to a 24V / 450W wheelchair motor )*:
 
 ```yaml
+# topics
+publish_velocity: true
+publish_encoder:  false
+publish_current:  true
+publish_motor_joint_state: false
+update_rate: 100.0
 # motor model
 motor_nominal_voltage: 24.0 # Volts
 moment_of_inertia: 0.001 # kgm^2
@@ -77,7 +84,22 @@ joint_damping: 0.005
 joint_friction: 0.01
 # shaft encoder
 encoder_ppr: 4096
+velocity_noise: 0.0
 ```
+
+#### Dynamic reconfiguration
+
+Aforementioned DC motor parameters can be set through dynamic reconfiguration server as well.
+
+![](doc/noise.gif)
+
+#### Parameter check
+
+If the parameters would produce an instable state in the solvers update function the plugin is going to restrict the changes to the last stable parameter set. The solvers stable parameter space looks like this - assuming the armature damping and moment of inertia is unchanged:
+
+![](doc/dc_plugin_stable.png) 
+
+
 
 #### ROS Topics
 
@@ -89,7 +111,6 @@ encoder_ppr: 4096
 
 - **/motor/velocity** -- motor shaft velocity *(encoder side, before gearbox)* **( rad / sec )**
 - **/motor/encoder** -- encoder counter 
-- **/motor/wrench** -- joint's torque and force
 - **/motor/current** -- electrical current flowing on the coil
 
 
@@ -153,4 +174,4 @@ More details on *fmax* and *fudge factor* can be found in the [ODE user guide](h
 
 ##### Authors
 
-Marton Yuhaas [nilseuropa](https://github.com/nilseuropa) and Gergely Gyebroszki [gyebro](https://github.com/Gyebro)
+Marton Juhasz [nilseuropa](https://github.com/nilseuropa) and Gergely Gyebroszki [gyebro](https://github.com/Gyebro)

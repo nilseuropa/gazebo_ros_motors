@@ -41,6 +41,7 @@ namespace gazebo {
       ~GazeboRosMotor();
       void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf);
       void Reset();
+	  bool ValidateParameters();
 
     protected:
 
@@ -50,6 +51,7 @@ namespace gazebo {
     private:
 
       GazeboRosPtr gazebo_ros_;
+      std::string plugin_name_;
       event::ConnectionPtr update_connection_;
       physics::ModelPtr parent;
       physics::JointPtr joint_;
@@ -88,6 +90,7 @@ namespace gazebo {
       double electromotive_force_constant_; // Nm/A = V/(rad/s)
       double electric_resistance_;
       double electric_inductance_;
+      gazebo_ros_motors::motorModelConfig current_config_;
       // Internal state variables
       double internal_current_;
       double internal_omega_;
@@ -104,6 +107,8 @@ namespace gazebo {
 
       // Reconfiguration
       boost::shared_ptr<dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>> dynamic_reconfigure_server_;
+      boost::recursive_mutex reconf_mutex_;
+      bool notify_server_;
       void reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level);
       ros::NodeHandle* node_handle_;
 
