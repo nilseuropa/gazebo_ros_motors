@@ -56,6 +56,10 @@ link_directories(
   ${OGRE-Paging_LIBRARY_DIRS}
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/motorModel.cfg
+)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
@@ -84,6 +88,7 @@ catkin_package(
 
 add_library(gazebo_ros_dc_motor src/gazebo_ros_dc_motor.cpp)
 target_link_libraries(gazebo_ros_dc_motor gazebo_ros_utils ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_dependencies(gazebo_ros_dc_motor ${PROJECT_NAME}_gencfg)
 
 add_library(gazebo_ros_joint_motor src/gazebo_ros_joint_motor.cpp)
 target_link_libraries(gazebo_ros_joint_motor gazebo_ros_utils ${catkin_LIBRARIES} ${Boost_LIBRARIES})

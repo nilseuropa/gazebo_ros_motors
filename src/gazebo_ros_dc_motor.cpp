@@ -28,7 +28,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->isInitialized();
 
     // global parameters
-    gazebo_ros_->getParameter<std::string> ( command_topic_,  "command_topic",  "/motor/command" );
+    gazebo_ros_->getParameter<std::string> ( command_topic_,  "command_topic",  "/motor/voltage_norm" );
     gazebo_ros_->getParameter<double> ( update_rate_, "update_rate", 100.0 );
 
     // motor model parameters
@@ -39,6 +39,9 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameter<double> ( electric_resistance_, "electric_resistance", 1.0 ); // 1 Ohm
     gazebo_ros_->getParameter<double> ( electric_inductance_, "electric_inductance", 0.001 ); // 1 mH
 
+    // noise parameters
+    gazebo_ros_->getParameter<double> ( velocity_noise_, "velocity_noise", 0.0 );
+
     // gearbox parameters
     gazebo_ros_->getParameter<double> ( gear_ratio_, "gear_ratio", 1.0 ); // Reduction!
 
@@ -46,12 +49,11 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameterBoolean  ( publish_velocity_, "publish_velocity", true );
     gazebo_ros_->getParameterBoolean  ( publish_encoder_, "publish_encoder", false );
     gazebo_ros_->getParameterBoolean  ( publish_current_, "publish_current", true );
-    // gazebo_ros_->getParameterBoolean  ( publish_wrench_, "publish_wrench", false );
     gazebo_ros_->getParameter<int>    ( encoder_pulses_per_revolution_, "encoder_ppr", 4096 );
+
     gazebo_ros_->getParameter<std::string> ( velocity_topic_, "velocity_topic", "/motor/velocity" );
     gazebo_ros_->getParameter<std::string> ( encoder_topic_,  "encoder_topic",  "/motor/encoder"  );
     gazebo_ros_->getParameter<std::string> ( current_topic_,  "current_topic",  "/motor/current"  );
-    // gazebo_ros_->getParameter<std::string> ( wrench_topic_,   "wrench_topic",   "/motor/wrench"   );
 
     // motor joint
     joint_ = gazebo_ros_->getJoint ( parent, "motor_shaft_joint", "shaft_joint" );
@@ -97,10 +99,11 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
       current_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(current_topic_, 1);
       ROS_INFO_NAMED("motor_plugin", "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
     }
-    // if (this->publish_wrench_){
-    //   wrench_publisher_ = gazebo_ros_->node()->advertise<geometry_msgs::WrenchStamped>(wrench_topic_, 1);
-    //   ROS_INFO_NAMED("motor_plugin", "%s: Advertising joint torque and force on %s ", gazebo_ros_->info(), wrench_topic_.c_str());
-    // }
+
+    // Set up dynamic_reconfigure server
+    node_handle_ = new ros::NodeHandle(_sdf->GetAttribute("name")->GetAsString());
+    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(ros::NodeHandle(*node_handle_)));
+    dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
 
     // start custom queue
     this->callback_queue_thread_ = std::thread ( std::bind ( &GazeboRosMotor::QueueThread, this ) );
@@ -120,6 +123,17 @@ void GazeboRosMotor::Reset() {
   encoder_counter_ = 0;
   internal_current_ = 0;
   internal_omega_ = 0;
+}
+
+void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level) {
+  // ROS_INFO_NAMED("motor_plugin", "%s: Dynamic configuration received. ", gazebo_ros_->info());
+  velocity_noise_=config.velocity_noise;
+  motor_nominal_voltage_=config.motor_nominal_voltage;
+  electric_resistance_=config.electric_resistance;
+  electric_inductance_=config.electric_inductance;
+  moment_of_inertia_=config.moment_of_inertia;
+  armature_damping_ratio_=config.armature_damping_ratio;
+  electromotive_force_constant_=config.electromotive_force_constant;
 }
 
 void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
@@ -161,25 +175,6 @@ void GazeboRosMotor::publishMotorCurrent(){
   c_msg.data = internal_current_; // (amps)
   if (this->publish_current_) current_publisher_.publish(c_msg);
 }
-
-// void GazeboRosMotor::publishJointWrench(physics::JointWrench wrench, common::Time time){
-//   if (this->publish_wrench_){
-//     ignition::math::Vector3d torque;
-//     ignition::math::Vector3d force;
-//     force  = wrench.body2Force;
-//     torque = wrench.body2Torque;
-//     this->wrench_msg_.header.frame_id = this->wrench_frame_;
-//     this->wrench_msg_.header.stamp.sec = time.sec;
-//     this->wrench_msg_.header.stamp.nsec = time.nsec;
-//     this->wrench_msg_.wrench.force.x  = force.X();
-//     this->wrench_msg_.wrench.force.y  = force.Y();
-//     this->wrench_msg_.wrench.force.z  = force.Z();
-//     this->wrench_msg_.wrench.torque.x = torque.X();
-//     this->wrench_msg_.wrench.torque.y = torque.Y();
-//     this->wrench_msg_.wrench.torque.z = torque.Z();
-//     this->wrench_publisher_.publish(this->wrench_msg_);
-//   }
-// }
 
 // Motor Model update function
 void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, double actual_load_torque) {
@@ -224,8 +219,6 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
 void GazeboRosMotor::UpdateChild() {
     common::Time current_time = parent->GetWorld()->SimTime();
     double seconds_since_last_update = ( current_time - last_update_time_ ).Double();
-    // physics::JointWrench current_wrench;
-    // current_wrench = joint_->GetForceTorque( 0u );
     double current_output_speed = joint_->GetVelocity( 0u );
     ignition::math::Vector3d current_torque = this->link_->RelativeTorque();
     double actual_load = current_torque.Z();
@@ -234,10 +227,12 @@ void GazeboRosMotor::UpdateChild() {
 
     if ( seconds_since_last_update > update_period_ ) {
         publishWheelJointState( current_output_speed, current_torque.Z() );
-        // publishJointWrench ( current_wrench, current_time );
         publishMotorCurrent();
-        publishRotorVelocity( current_output_speed );
-        publishEncoderCount( current_output_speed , seconds_since_last_update );
+        auto dist = std::bind(std::normal_distribution<double>{current_output_speed, velocity_noise_},
+                              std::mt19937(std::random_device{}()));
+        double current_noisy_output_speed = dist();
+        publishRotorVelocity( current_noisy_output_speed );
+        publishEncoderCount( current_noisy_output_speed , seconds_since_last_update );
         last_update_time_+= common::Time ( update_period_ );
     }
 }

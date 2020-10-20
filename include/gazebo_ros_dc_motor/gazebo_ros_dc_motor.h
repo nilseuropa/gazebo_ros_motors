@@ -1,5 +1,5 @@
-#ifndef _MOTOR_PLUGIN_H_
-#define _MOTOR_PLUGIN_H_
+#ifndef _DC_MOTOR_PLUGIN_H_
+#define _DC_MOTOR_PLUGIN_H_
 
 #include <map>
 
@@ -15,6 +15,10 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/JointState.h>
+
+// configuration
+#include <dynamic_reconfigure/server.h>
+#include <gazebo_ros_motors/motorModelConfig.h>
 
 // Custom Callback Queue
 #include <ros/callback_queue.h>
@@ -54,22 +58,22 @@ namespace gazebo {
       ros::Publisher velocity_publisher_;
       ros::Publisher current_publisher_;
       ros::Publisher joint_state_publisher_;
-      // ros::Publisher wrench_publisher_;
       ros::Subscriber cmd_vel_subscriber_;
       sensor_msgs::JointState joint_state_;
       geometry_msgs::WrenchStamped wrench_msg_;
+
+      // Measurement noise
+      double velocity_noise_;
 
       // Topic params
       std::string command_topic_;
       std::string encoder_topic_;
       std::string velocity_topic_; /// topic for the motor shaft velocity (encoder side, before gearbox)
       std::string current_topic_;
-      // std::string wrench_topic_;
       std::string wrench_frame_;
       bool publish_velocity_;
       bool publish_current_;
       bool publish_encoder_;
-      // bool publish_wrench_;
       bool publish_motor_joint_state_;
       double input_;
       double update_rate_;
@@ -98,6 +102,11 @@ namespace gazebo {
       boost::mutex lock_;
       void QueueThread();
 
+      // Reconfiguration
+      boost::shared_ptr<dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>> dynamic_reconfigure_server_;
+      void reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level);
+      ros::NodeHandle* node_handle_;
+
       // Helper variables
       double update_period_;
       common::Time last_update_time_;
@@ -109,7 +118,6 @@ namespace gazebo {
       void motorModelUpdate(double dt, double actual_omega, double current_torque);
       void publishEncoderCount(double m_vel, double dT);
       void publishMotorCurrent();
-      // void publishJointWrench(physics::JointWrench wrench, common::Time current_time);
   };
 
 }
