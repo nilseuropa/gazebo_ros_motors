@@ -28,6 +28,11 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->isInitialized();
     this->plugin_name_ = _sdf->GetAttribute("name")->GetAsString();
 
+    // Set up dynamic_reconfigure server
+    node_handle_ = new ros::NodeHandle(plugin_name_);
+    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(reconf_mutex_, ros::NodeHandle(*node_handle_)));
+    dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
+
     // global parameters
     gazebo_ros_->getParameter<std::string> ( command_topic_,  "command_topic",  "/motor/voltage_norm" );
     gazebo_ros_->getParameter<double> ( update_rate_, "update_rate", 100.0 );
@@ -100,12 +105,6 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
       current_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(current_topic_, 1);
       ROS_INFO_NAMED(plugin_name_, "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
     }
-
-    // Set up dynamic_reconfigure server
-    node_handle_ = new ros::NodeHandle(plugin_name_);
-    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(reconf_mutex_, ros::NodeHandle(*node_handle_)));
-    dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
-    // this->dynamic_reconfigure_server_.setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
 
     // start custom queue
     this->callback_queue_thread_ = std::thread ( std::bind ( &GazeboRosMotor::QueueThread, this ) );
