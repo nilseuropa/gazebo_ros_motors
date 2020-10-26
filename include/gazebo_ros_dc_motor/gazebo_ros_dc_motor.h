@@ -111,7 +111,8 @@ namespace gazebo {
       bool notify_server_;
       void reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level);
       ros::NodeHandle* node_handle_;
-
+      bool initial_params_set_;
+      
       // Helper variables
       double update_period_;
       common::Time last_update_time_;

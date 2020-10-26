@@ -116,6 +116,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     encoder_counter_ = 0;
     internal_current_ = 0;
     internal_omega_ = 0;
+    initial_params_set_ = true;
 }
 
 void GazeboRosMotor::Reset() {
@@ -156,6 +157,8 @@ bool GazeboRosMotor::ValidateParameters() {
 }
 
 void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level) {
+  if (this->initial_params_set_)
+  {
     // ROS_INFO_NAMED(plugin_name_, "%s: Dynamic configuration received. ", gazebo_ros_->info());
     // Noise and V does not affect linear stability
     velocity_noise_=config.velocity_noise;
@@ -217,6 +220,7 @@ void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConf
     } else {
       notify_server_ = true; // Some of the params were rejected, notify the param server from the main loop.
     }
+  }
 }
 
 void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
