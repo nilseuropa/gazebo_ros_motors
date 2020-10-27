@@ -1,19 +1,20 @@
 # topics
-publish_velocity: true
-publish_encoder:  false
-publish_current:  true
-publish_motor_joint_state: false
-update_rate: 100.0
+publish_velocity            : true
+publish_encoder             : true
+publish_current             : false
+publish_motor_joint_state   : true
+update_rate                 : 100.0
 # motor model
-motor_nominal_voltage: 24.0 # Volts
-moment_of_inertia: 0.001 # kgm^2
-armature_damping_ratio: 0.0001 # Nm/(rad/s)
-electromotive_force_constant: 0.08 # Nm/A
-electric_resistance: 1.0 # Ohm
-electric_inductance: 0.001 # Henry
+motor_nominal_voltage       : 24.0 # Volts
+moment_of_inertia           : 0.001 # kgm^2
+armature_damping_ratio      : 0.0001 # Nm/(rad/s)
+electromotive_force_constant: 0.03 # Nm/A
+electric_resistance         : 13.8 # Ohm
+electric_inductance         : 0.001 # Henry
 # transmission
-gear_ratio: 20.0
-joint_damping: 0.005
-joint_friction: 0.01
+gear_ratio                  : 72.0
+joint_damping               : 0.005
+joint_friction              : 0.01
 # shaft encoder
-encoder_ppr: 4096
+encoder_ppr                 : 111
+velocity_noise              : 0.0

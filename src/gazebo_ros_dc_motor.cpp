@@ -23,15 +23,13 @@ GazeboRosMotor::~GazeboRosMotor() {
 // Load the controller
 void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     this->parent = _parent;
-
-    gazebo_ros_ = GazeboRosPtr ( new GazeboRos ( _parent, _sdf, "MotorPlugin" ) );
-    gazebo_ros_->isInitialized();
     this->plugin_name_ = _sdf->GetAttribute("name")->GetAsString();
 
-    // Set up dynamic_reconfigure server
-    node_handle_ = new ros::NodeHandle(plugin_name_);
-    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(reconf_mutex_, ros::NodeHandle(*node_handle_)));
-    dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
+    gazebo_ros_ = GazeboRosPtr ( new GazeboRos ( _parent, _sdf, plugin_name_ ) );
+    gazebo_ros_->isInitialized();
+
+    // start custom queue
+    this->callback_queue_thread_ = std::thread ( std::bind ( &GazeboRosMotor::QueueThread, this ) );
 
     // global parameters
     gazebo_ros_->getParameter<std::string> ( command_topic_,  "command_topic",  "/motor/voltage_norm" );
@@ -39,11 +37,17 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 
     // motor model parameters
     gazebo_ros_->getParameter<double> ( motor_nominal_voltage_, "motor_nominal_voltage", 24.0 ); // Datasheet 24.0V
+    ROS_INFO_NAMED(plugin_name_, "motor_nominal_voltage_ = %f", motor_nominal_voltage_);
     gazebo_ros_->getParameter<double> ( moment_of_inertia_, "moment_of_inertia", 0.001 ); // 0.001 kgm^2
+    ROS_INFO_NAMED(plugin_name_, "moment_of_inertia_ = %f", moment_of_inertia_);
     gazebo_ros_->getParameter<double> ( armature_damping_ratio_, "armature_damping_ratio", 0.0001 ); // Nm/(rad/s)
+    ROS_INFO_NAMED(plugin_name_, "armature_damping_ratio_ = %f", armature_damping_ratio_);
     gazebo_ros_->getParameter<double> ( electromotive_force_constant_, "electromotive_force_constant", 0.08 ); // Datasheet: 1.8Nm / 22A or 24V / 300 (rad/s)
+    ROS_INFO_NAMED(plugin_name_, "electromotive_force_constant_ = %f", electromotive_force_constant_);
     gazebo_ros_->getParameter<double> ( electric_resistance_, "electric_resistance", 1.0 ); // 1 Ohm
+    ROS_INFO_NAMED(plugin_name_, "electric_resistance_ = %f", electric_resistance_);
     gazebo_ros_->getParameter<double> ( electric_inductance_, "electric_inductance", 0.001 ); // 1 mH
+    ROS_INFO_NAMED(plugin_name_, "electric_inductance_ = %f", electric_inductance_);
 
     // noise parameters
     gazebo_ros_->getParameter<double> ( velocity_noise_, "velocity_noise", 0.0 );
@@ -106,9 +110,6 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
       ROS_INFO_NAMED(plugin_name_, "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
     }
 
-    // start custom queue
-    this->callback_queue_thread_ = std::thread ( std::bind ( &GazeboRosMotor::QueueThread, this ) );
-
     // listen to the update event (broadcast every simulation iteration)
     this->update_connection_ = event::Events::ConnectWorldUpdateBegin ( boost::bind ( &GazeboRosMotor::UpdateChild, this ) );
 
@@ -116,7 +117,16 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     encoder_counter_ = 0;
     internal_current_ = 0;
     internal_omega_ = 0;
-    initial_params_set_ = true;
+
+    // Set up dynamic_reconfigure server
+    ROS_INFO_NAMED(plugin_name_, "%s: Setting up dynamic reconfigure server.", gazebo_ros_->info());
+    node_handle_ = new ros::NodeHandle(plugin_name_);
+    dynamic_reconfigure_server_.reset(new dynamic_reconfigure::Server<gazebo_ros_motors::motorModelConfig>(reconf_mutex_, ros::NodeHandle(*node_handle_)));
+    boost::recursive_mutex::scoped_lock scoped_lock(reconf_mutex_);
+    notify_server_ = true;
+    this->paramServerUpdate();
+    dynamic_reconfigure_server_->setCallback(boost::bind(&GazeboRosMotor::reconfigureCallBack, this, _1, _2));
+    scoped_lock.unlock();
 }
 
 void GazeboRosMotor::Reset() {
@@ -127,12 +137,21 @@ void GazeboRosMotor::Reset() {
   internal_omega_ = 0;
 }
 
+bool GazeboRosMotor::checkParameters() {
+   if ( this->armature_damping_ratio_ !=0.0 && !isnan(this->armature_damping_ratio_) &&
+        this->electric_inductance_ !=0.0 && !isnan(this->electric_inductance_) &&
+        this->electric_resistance_ !=0.0 && !isnan(this->electric_resistance_) &&
+        this->electromotive_force_constant_ !=0.0 && !isnan(this->electromotive_force_constant_) &&
+        this->moment_of_inertia_ !=0.0 && !isnan(this->moment_of_inertia_)) return true;
+        else return false;
+}
+
 bool GazeboRosMotor::ValidateParameters() {
-    const double& d = armature_damping_ratio_;
-    const double& L = electric_inductance_;
-    const double& R = electric_resistance_;
-    const double& Km = electromotive_force_constant_;
-    const double& J = moment_of_inertia_;
+    const double& d = this->armature_damping_ratio_;
+    const double& L = this->electric_inductance_;
+    const double& R = this->electric_resistance_;
+    const double& Km = this->electromotive_force_constant_;
+    const double& J = this->moment_of_inertia_;
     bool ok = true;
     // Check if d^2 L^2 + J^2 R^2 - 2 J L (2 Km^2 + d R) > 0 (which appears under sqrt)
     double Om = 0;
@@ -156,16 +175,33 @@ bool GazeboRosMotor::ValidateParameters() {
     return ok;
 }
 
+void GazeboRosMotor::paramServerUpdate()
+{
+  if (notify_server_) {
+    current_config_.velocity_noise        = velocity_noise_;
+    current_config_.motor_nominal_voltage = motor_nominal_voltage_;
+    current_config_.electric_resistance   = electric_resistance_;
+    current_config_.electric_inductance   = electric_inductance_;
+    current_config_.moment_of_inertia     = moment_of_inertia_;
+    current_config_.armature_damping_ratio       = armature_damping_ratio_;
+    current_config_.electromotive_force_constant = electromotive_force_constant_;
+    dynamic_reconfigure_server_->updateConfig(current_config_);
+    ROS_INFO_NAMED(plugin_name_, "Notifying parameter server...");
+    notify_server_ = false;
+  }
+}
+
 void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level) {
-  if (this->initial_params_set_)
+
+  if (this->checkParameters())
   {
-    // ROS_INFO_NAMED(plugin_name_, "%s: Dynamic configuration received. ", gazebo_ros_->info());
     // Noise and V does not affect linear stability
-    velocity_noise_=config.velocity_noise;
-    motor_nominal_voltage_=config.motor_nominal_voltage;
+    this->velocity_noise_=config.velocity_noise;
+    this->motor_nominal_voltage_=config.motor_nominal_voltage;
     bool ok = true;
 
-    double temp = electric_resistance_; // Temporary storage for parameter
+    double temp = this->electric_resistance_; // Temporary storage for parameter
+    // ROS_INFO_NAMED(plugin_name_, "Rt = %f", temp);
     if (electric_resistance_ != config.electric_resistance) {
       electric_resistance_ = config.electric_resistance;// R
       if (!this->ValidateParameters()) {
@@ -175,7 +211,8 @@ void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConf
       }
     }
 
-    temp = electric_inductance_;
+    temp = this->electric_inductance_;
+    // ROS_INFO_NAMED(plugin_name_, "Lt = %f", temp);
     if (electric_inductance_ != config.electric_inductance) {
       electric_inductance_ = config.electric_inductance; // L
       if (!this->ValidateParameters()) {
@@ -185,7 +222,8 @@ void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConf
       }
     }
 
-    temp = moment_of_inertia_;
+    temp = this->moment_of_inertia_;
+    // ROS_INFO_NAMED(plugin_name_, "Jt = %f", temp);
     if (moment_of_inertia_ != config.moment_of_inertia) {
       moment_of_inertia_ = config.moment_of_inertia; // J
       if (!this->ValidateParameters()) {
@@ -195,7 +233,8 @@ void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConf
       }
     }
 
-    temp = armature_damping_ratio_;
+    temp = this->armature_damping_ratio_;
+    // ROS_INFO_NAMED(plugin_name_, "Dt = %f", temp);
     if (armature_damping_ratio_ != config.armature_damping_ratio) {
       armature_damping_ratio_ = config.armature_damping_ratio; // d
       if (!this->ValidateParameters()) {
@@ -205,7 +244,8 @@ void GazeboRosMotor::reconfigureCallBack(const gazebo_ros_motors::motorModelConf
       }
     }
 
-    temp = electromotive_force_constant_;
+    temp = this->electromotive_force_constant_;
+    // ROS_INFO_NAMED(plugin_name_, "Kt = %f", temp);
     if (electromotive_force_constant_ != config.electromotive_force_constant) {
       electromotive_force_constant_ = config.electromotive_force_constant; // Km
       if (!this->ValidateParameters()) {
@@ -298,6 +338,7 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
     internal_current_ = i_t;
     internal_omega_   = o_t;
     ignition::math::Vector3d applied_torque;
+    // TODO: axis as param
     applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
     this->link_->AddRelativeTorque(applied_torque);
 }
@@ -324,20 +365,7 @@ void GazeboRosMotor::UpdateChild() {
     }
 
     // If there was a parameter update, notify server
-    if (notify_server_) {
-      current_config_.velocity_noise        = velocity_noise_;
-      current_config_.motor_nominal_voltage = motor_nominal_voltage_;
-      current_config_.electric_resistance   = electric_resistance_;
-      current_config_.electric_inductance   = electric_inductance_;
-      current_config_.moment_of_inertia     = moment_of_inertia_;
-      current_config_.armature_damping_ratio       = armature_damping_ratio_;
-      current_config_.electromotive_force_constant = electromotive_force_constant_;
-      boost::recursive_mutex::scoped_lock scoped_lock(reconf_mutex_);
-      dynamic_reconfigure_server_->updateConfig(current_config_);
-      ROS_INFO_NAMED(plugin_name_, "Some parameter changes were rejected, notifying parameter server...");
-      notify_server_ = false;
-      scoped_lock.unlock();
-    }
+    paramServerUpdate();
 }
 
 // Finalize the controller

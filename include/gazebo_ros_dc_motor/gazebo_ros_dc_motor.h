@@ -41,7 +41,8 @@ namespace gazebo {
       ~GazeboRosMotor();
       void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf);
       void Reset();
-	  bool ValidateParameters();
+	    bool ValidateParameters();
+      bool checkParameters();
 
     protected:
 
@@ -111,8 +112,8 @@ namespace gazebo {
       bool notify_server_;
       void reconfigureCallBack(const gazebo_ros_motors::motorModelConfig &config, uint32_t level);
       ros::NodeHandle* node_handle_;
-      bool initial_params_set_;
-      
+      void paramServerUpdate();
+
       // Helper variables
       double update_period_;
       common::Time last_update_time_;
