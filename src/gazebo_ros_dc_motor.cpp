@@ -64,7 +64,8 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameter<std::string> ( velocity_topic_, "velocity_topic", "/motor/velocity" );
     gazebo_ros_->getParameter<std::string> ( encoder_topic_,  "encoder_topic",  "/motor/encoder"  );
     gazebo_ros_->getParameter<std::string> ( current_topic_,  "current_topic",  "/motor/current"  );
-
+    gazebo_ros_->getParameter<std::string> ( supply_topic_,  "supply_topic",  "/motor/supply_voltage"  );
+    
     // motor joint
     joint_ = gazebo_ros_->getJoint ( parent, "motor_shaft_joint", "shaft_joint" );
 
@@ -83,9 +84,10 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
         ROS_INFO_NAMED(plugin_name_, "%s: Advertise joint_state", gazebo_ros_->info());
     }
 
-    // command subscriber
     if ( this->update_rate_ > 0.0 ) this->update_period_ = 1.0 / this->update_rate_; else this->update_period_ = 0.0;
     last_update_time_ = parent->GetWorld()->SimTime();
+
+    // command subscriber
     ROS_INFO_NAMED(plugin_name_, "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
     ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
         command_topic_,
@@ -96,6 +98,19 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     );
     cmd_vel_subscriber_ = gazebo_ros_->node()->subscribe(so);
     ROS_INFO_NAMED(plugin_name_, "%s: Subscribed to %s", gazebo_ros_->info(), command_topic_.c_str());
+
+    // supply voltage subscriber
+    ROS_INFO_NAMED(plugin_name_, "%s: Trying to subscribe to %s", gazebo_ros_->info(), supply_topic_.c_str());
+    ros::SubscribeOptions sov = ros::SubscribeOptions::create<std_msgs::Float32> (
+        supply_topic_,
+        1,
+        boost::bind(&GazeboRosMotor::supplyVoltageCallBack, this, _1),
+        ros::VoidPtr(),
+        &queue_
+    );
+    supply_voltage_subscriber_ = gazebo_ros_->node()->subscribe(sov);
+    ROS_INFO_NAMED(plugin_name_, "%s: Subscribed to %s", gazebo_ros_->info(), command_topic_.c_str());
+
     // encoder publishers
     if (this->publish_velocity_){
       velocity_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(velocity_topic_, 1);
@@ -117,6 +132,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     encoder_counter_ = 0;
     internal_current_ = 0;
     internal_omega_ = 0;
+    supply_voltage_ = motor_nominal_voltage_;
 
     // Set up dynamic_reconfigure server
     ROS_INFO_NAMED(plugin_name_, "%s: Setting up dynamic reconfigure server.", gazebo_ros_->info());
@@ -135,6 +151,7 @@ void GazeboRosMotor::Reset() {
   encoder_counter_ = 0;
   internal_current_ = 0;
   internal_omega_ = 0;
+  supply_voltage_ = motor_nominal_voltage_;
 }
 
 bool GazeboRosMotor::checkParameters() {
@@ -311,7 +328,7 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
         input_ = -1.0;
     }
     double T = actual_load_torque / gear_ratio_; // external loading torque converted to internal side
-    double V = input_ * motor_nominal_voltage_; // input voltage (command input for motor velocity)
+    double V = input_ * supply_voltage_; // power supply voltage * (command input for motor velocity)
     internal_omega_ = output_shaft_omega * gear_ratio_; // external shaft angular veloc. converted to internal side
     // DC motor exact solution for current and angular velocity (omega)
     const double& d = armature_damping_ratio_;
@@ -379,6 +396,10 @@ void GazeboRosMotor::FiniChild() {
 // Callback from custom que
 void GazeboRosMotor::cmdVelCallback ( const std_msgs::Float32::ConstPtr& cmd_msg ) {
     input_ = cmd_msg->data;
+}
+
+void GazeboRosMotor::supplyVoltageCallBack ( const std_msgs::Float32::ConstPtr& voltage ) {
+    supply_voltage_ = voltage->data;
 }
 
 void GazeboRosMotor::QueueThread() {

@@ -62,17 +62,20 @@ namespace gazebo {
       ros::Publisher current_publisher_;
       ros::Publisher joint_state_publisher_;
       ros::Subscriber cmd_vel_subscriber_;
+      ros::Subscriber supply_voltage_subscriber_;
       sensor_msgs::JointState joint_state_;
       geometry_msgs::WrenchStamped wrench_msg_;
 
       // Measurement noise
       double velocity_noise_;
+      double supply_voltage_;
 
       // Topic params
       std::string command_topic_;
       std::string encoder_topic_;
       std::string velocity_topic_; /// topic for the motor shaft velocity (encoder side, before gearbox)
       std::string current_topic_;
+      std::string supply_topic_;
       std::string wrench_frame_;
       bool publish_velocity_;
       bool publish_current_;
@@ -121,6 +124,7 @@ namespace gazebo {
       void publishRotorVelocity(double m_vel);
       void publishEncoderCount(long ctr);
       void cmdVelCallback(const std_msgs::Float32::ConstPtr& cmd_msg);
+      void supplyVoltageCallBack(const std_msgs::Float32::ConstPtr& voltage);
       void publishWheelJointState( double m_vel, double m_effort );
       void motorModelUpdate(double dt, double actual_omega, double current_torque);
       void publishEncoderCount(double m_vel, double dT);

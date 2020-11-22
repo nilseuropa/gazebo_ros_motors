@@ -22,6 +22,7 @@
       <velocity_topic>${motor_name}/velocity</velocity_topic>
       <encoder_topic>${motor_name}/encoder</encoder_topic>
       <current_topic>${motor_name}/current</current_topic>
+      <supply_topic>${motor_name}/supply_voltage</supply_topic>
       <publish_encoder>${motor_param['publish_encoder']}</publish_encoder>
       <publish_velocity>${motor_param['publish_velocity']}</publish_velocity>
       <publish_current>${motor_param['publish_current']}</publish_current>

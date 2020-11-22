@@ -107,6 +107,10 @@ If the parameters would produce an instable state in the solvers update function
 
 - **/motor/command**  -- normalized voltage, scales to **motor_nominal_voltage** parameter
 
+- **/motor/supply_voltage** -- overwrites* the **motor_nominal_voltage** parameter runtime ( **V** )
+
+  **To be used with [Gazebo ROS Battery plugin](https://github.com/nilseuropa/gazebo_ros_battery)*
+
 **Publishers**
 
 - **/motor/velocity** -- motor shaft velocity *(encoder side, before gearbox)* **( rad / sec )**
@@ -167,8 +171,6 @@ More details on *fmax* and *fudge factor* can be found in the [ODE user guide](h
 
 - **/motor/velocity** -- motor shaft velocity *(encoder side, before gearbox)* **( rad / sec )**
 - **/motor/encoder** -- encoder counter 
-
-
 
 
 
