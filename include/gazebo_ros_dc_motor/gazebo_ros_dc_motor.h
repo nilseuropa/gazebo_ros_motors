@@ -100,7 +100,7 @@ namespace gazebo {
       double internal_omega_;
 
       // Encoder model
-      int encoder_counter_;
+      double encoder_counter_;
       int encoder_pulses_per_revolution_;
 
       // Callback Queue

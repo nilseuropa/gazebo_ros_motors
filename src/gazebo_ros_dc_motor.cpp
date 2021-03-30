@@ -65,7 +65,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     gazebo_ros_->getParameter<std::string> ( encoder_topic_,  "encoder_topic",  "/motor/encoder"  );
     gazebo_ros_->getParameter<std::string> ( current_topic_,  "current_topic",  "/motor/current"  );
     gazebo_ros_->getParameter<std::string> ( supply_topic_,  "supply_topic",  "/motor/supply_voltage"  );
-    
+
     // motor joint
     joint_ = gazebo_ros_->getJoint ( parent, "motor_shaft_joint", "shaft_joint" );
 
@@ -309,7 +309,7 @@ void GazeboRosMotor::publishRotorVelocity(double m_vel){
 void GazeboRosMotor::publishEncoderCount(double m_vel, double dT){
   std_msgs::Int32 counter_msg;
   double rev_in_rad = m_vel * dT;
-  encoder_counter_ += round( ((rev_in_rad)/2*M_PI) * encoder_pulses_per_revolution_ );
+  encoder_counter_ += ((rev_in_rad)/2*M_PI) * encoder_pulses_per_revolution_;
   counter_msg.data = encoder_counter_;
   if (this->publish_encoder_) encoder_publisher_.publish(counter_msg);
 }
