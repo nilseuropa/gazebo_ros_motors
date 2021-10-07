@@ -12,7 +12,7 @@
       <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
   </joint>
   <gazebo>
-    <plugin name="motor_plugin" filename="libgazebo_ros_joint_motor.so">
+    <plugin name="${motor_name}_plugin" filename="libgazebo_ros_joint_motor.so">
       <motor_shaft_joint>${motor_name}</motor_shaft_joint>
       <motor_wrench_frame>${child_link}</motor_wrench_frame>
       <ode_joint_motor_fmax>${motor_param['ode_joint_motor_fmax']}</ode_joint_motor_fmax>
