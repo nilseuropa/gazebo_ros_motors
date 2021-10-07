@@ -9,7 +9,6 @@
       <child link="${child_link}"/>
       <xacro:insert_block name="origin"/>
       <xacro:insert_block name="axis"/>
-      <!-- <axis xyz="0 0 1"/> -->
       <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
   </joint>
   <gazebo reference="${motor_name}">

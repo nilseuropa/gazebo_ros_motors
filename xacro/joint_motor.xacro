@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-<xacro:macro name="joint_motor" params="motor_name parent_link child_link *origin">
+<xacro:macro name="joint_motor" params="motor_name parent_link child_link *origin *axis">
   <xacro:property name="params_yaml"  value="$(find gazebo_ros_motors)/params/joint_motor.yaml"/>
   <xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
   <joint name="${motor_name}" type="continuous">
       <parent link="${parent_link}"/>
       <child link="${child_link}"/>
       <xacro:insert_block name="origin"/>
-      <axis xyz="0 0 1"/>
+      <xacro:insert_block name="axis"/>
       <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
   </joint>
   <gazebo>
