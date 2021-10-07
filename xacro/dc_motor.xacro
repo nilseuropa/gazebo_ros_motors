@@ -1,21 +1,22 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-<xacro:macro name="dc_motor" params="motor_name parent_link child_link *origin">
+<xacro:macro name="dc_motor" params="motor_name parent_link child_link *origin *axis">
   <!-- <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/> -->
   <xacro:property name="motor_param" value="${load_yaml(params_yaml)}"/>
   <joint name="${motor_name}" type="continuous">
       <parent link="${parent_link}"/>
       <child link="${child_link}"/>
       <xacro:insert_block name="origin"/>
-      <axis xyz="0 0 1"/>
+      <xacro:insert_block name="axis"/>
+      <!-- <axis xyz="0 0 1"/> -->
       <dynamics damping="${motor_param['joint_damping']}" friction="${motor_param['joint_friction']}"/>
   </joint>
   <gazebo reference="${motor_name}">
     <provideFeedback>true</provideFeedback>
   </gazebo>
   <gazebo>
-    <plugin name="motor_plugin" filename="libgazebo_ros_dc_motor.so">
+    <plugin name="${motor_name}_plugin" filename="libgazebo_ros_dc_motor.so">
       <motor_shaft_joint>${motor_name}</motor_shaft_joint>
       <motor_wrench_frame>${child_link}</motor_wrench_frame>
       <command_topic>${motor_name}/command</command_topic>
