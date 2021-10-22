@@ -59,6 +59,7 @@ Just use the **dc_motor** macro in a descriptor file as if it were a joint:
   <xacro:dc_motor motor_name="dc_motor" parent_link="base_link" child_link="wheel_link">
     <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/>
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <axis xyz="0 1 0" rpy="0 0 0"/>
   </xacro:dc_motor>
 ```
 
@@ -142,6 +143,7 @@ Just use the **joint_motor** macro in a descriptor file as if it were a joint:
   <xacro:joint_motor motor_name="ode_motor" parent_link="base_link" child_link="wheel_link">
     <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/joint_motor.yaml"/>
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <axis xyz="0 0 1" rpy="0 0 0"/>
   </xacro:joint_motor>
 ```
 
