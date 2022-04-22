@@ -355,9 +355,9 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
     internal_current_ = i_t;
     internal_omega_   = o_t;
     ignition::math::Vector3d applied_torque;
-    // TODO: axis as param
-    applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
-    this->link_->AddRelativeTorque(applied_torque);
+
+    double torque = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
+    this->joint_->SetForce(0,torque);
 }
 
 // Plugin update function

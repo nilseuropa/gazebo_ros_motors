@@ -78,6 +78,7 @@
   <xacro:dc_motor motor_name="dc_motor" parent_link="base_link" child_link="one_wheel_link">
     <xacro:property name="params_yaml" value="$(find gazebo_ros_motors)/params/dc_motor.yaml"/>
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <axis xyz="0 1 0" rpy="0 0 0"/>
   </xacro:dc_motor>
 
 </robot>
