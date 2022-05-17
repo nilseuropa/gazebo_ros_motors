@@ -89,10 +89,10 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 
     // command subscriber
     ROS_INFO_NAMED(plugin_name_, "%s: Trying to subscribe to %s", gazebo_ros_->info(), command_topic_.c_str());
-    ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
+    ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float64> (
         command_topic_,
         1,
-        boost::bind(&GazeboRosMotor::cmdVelCallback, this, _1),
+        boost::bind(&GazeboRosMotor::cmdCallback, this, _1),
         ros::VoidPtr(),
         &queue_
     );
@@ -113,7 +113,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
 
     // encoder publishers
     if (this->publish_velocity_){
-      velocity_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(velocity_topic_, 1);
+      velocity_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float64>(velocity_topic_, 1);
       ROS_INFO_NAMED(plugin_name_, "%s: Advertising motor shaft (before gearbox) velocity on %s ", gazebo_ros_->info(), velocity_topic_.c_str());
     }
     if (this->publish_encoder_){
@@ -121,7 +121,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
       ROS_INFO_NAMED(plugin_name_, "%s: Advertising encoder counts on %s ", gazebo_ros_->info(), encoder_topic_.c_str());
     }
     if (this->publish_current_){
-      current_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float32>(current_topic_, 1);
+      current_publisher_ = gazebo_ros_->node()->advertise<std_msgs::Float64>(current_topic_, 1);
       ROS_INFO_NAMED(plugin_name_, "%s: Advertising actual motor current on %s ", gazebo_ros_->info(), current_topic_.c_str());
     }
 
@@ -300,7 +300,7 @@ void GazeboRosMotor::publishWheelJointState(double velocity, double effort) {
 
 // Velocity publisher
 void GazeboRosMotor::publishRotorVelocity(double m_vel){
-  std_msgs::Float32 vel_msg;
+  std_msgs::Float64 vel_msg;
   vel_msg.data = m_vel; // (rad/sec)
   if (this->publish_velocity_) velocity_publisher_.publish(vel_msg);
 }
@@ -315,7 +315,7 @@ void GazeboRosMotor::publishEncoderCount(double m_vel, double dT){
 }
 
 void GazeboRosMotor::publishMotorCurrent(){
-  std_msgs::Float32 c_msg;
+  std_msgs::Float64 c_msg;
   c_msg.data = internal_current_; // (amps)
   if (this->publish_current_) current_publisher_.publish(c_msg);
 }
@@ -394,7 +394,7 @@ void GazeboRosMotor::FiniChild() {
 }
 
 // Callback from custom que
-void GazeboRosMotor::cmdVelCallback ( const std_msgs::Float32::ConstPtr& cmd_msg ) {
+void GazeboRosMotor::cmdCallback ( const std_msgs::Float64::ConstPtr& cmd_msg ) {
     input_ = cmd_msg->data;
 }
 

@@ -11,6 +11,7 @@
 // ROS
 #include <ros/ros.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Float64.h>
 #include <std_msgs/Int32.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <nav_msgs/Odometry.h>
@@ -123,7 +124,7 @@ namespace gazebo {
 
       void publishRotorVelocity(double m_vel);
       void publishEncoderCount(long ctr);
-      void cmdVelCallback(const std_msgs::Float32::ConstPtr& cmd_msg);
+      void cmdCallback(const std_msgs::Float64::ConstPtr& cmd_msg);
       void supplyVoltageCallBack(const std_msgs::Float32::ConstPtr& voltage);
       void publishWheelJointState( double m_vel, double m_effort );
       void motorModelUpdate(double dt, double actual_omega, double current_torque);
