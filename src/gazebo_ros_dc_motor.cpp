@@ -92,7 +92,7 @@ void GazeboRosMotor::Load ( physics::ModelPtr _parent, sdf::ElementPtr _sdf ) {
     ros::SubscribeOptions so = ros::SubscribeOptions::create<std_msgs::Float32> (
         command_topic_,
         1,
-        boost::bind(&GazeboRosMotor::cmdVelCallback, this, _1),
+        boost::bind(&GazeboRosMotor::cmdCallback, this, _1),
         ros::VoidPtr(),
         &queue_
     );
@@ -354,10 +354,11 @@ void GazeboRosMotor::motorModelUpdate(double dt, double output_shaft_omega, doub
     // Update internal variables
     internal_current_ = i_t;
     internal_omega_   = o_t;
-    ignition::math::Vector3d applied_torque;
-    // TODO: axis as param
-    applied_torque.Z() = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
-    this->link_->AddRelativeTorque(applied_torque);
+
+    double torque = Km * i_t * gear_ratio_; // motor torque T_ext = K * i * n_gear
+    //ROS_INFO_NAMED(plugin_name_, "%s external: %4.6f motor :%4.6f", this->joint_->GetName().c_str(),actual_load_torque, torque);
+
+    this->joint_->SetForce(0,torque);
 }
 
 // Plugin update function
@@ -365,13 +366,12 @@ void GazeboRosMotor::UpdateChild() {
     common::Time current_time = parent->GetWorld()->SimTime();
     double seconds_since_last_update = ( current_time - last_update_time_ ).Double();
     double current_output_speed = joint_->GetVelocity( 0u );
-    ignition::math::Vector3d current_torque = this->link_->RelativeTorque();
-    double actual_load = current_torque.Z();
+    double actual_load = this->joint_->GetForce(0);
 
     motorModelUpdate(seconds_since_last_update, current_output_speed, actual_load);
 
     if ( seconds_since_last_update > update_period_ ) {
-        publishWheelJointState( current_output_speed, current_torque.Z() );
+        publishWheelJointState( current_output_speed, actual_load );
         publishMotorCurrent();
         auto dist = std::bind(std::normal_distribution<double>{current_output_speed, velocity_noise_},
                               std::mt19937(std::random_device{}()));
@@ -394,7 +394,7 @@ void GazeboRosMotor::FiniChild() {
 }
 
 // Callback from custom que
-void GazeboRosMotor::cmdVelCallback ( const std_msgs::Float32::ConstPtr& cmd_msg ) {
+void GazeboRosMotor::cmdCallback ( const std_msgs::Float32::ConstPtr& cmd_msg ) {
     input_ = cmd_msg->data;
 }
 
